@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23231" systemVersion="25E143" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+    <entity name="CDLibrary" representedClassName="CDLibrary" syncable="YES" codeGenerationType="class">
+        <attribute name="name" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="ownerName" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="emoji" optional="YES" attributeType="String" defaultValueString="&#x1F4DA;"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" defaultDateTimeInterval="0" usesScalarValueType="NO"/>
+        <relationship name="books" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CDBook" inverseName="library" inverseEntity="CDBook"/>
+    </entity>
+    <entity name="CDBook" representedClassName="CDBook" syncable="YES" codeGenerationType="class">
+        <attribute name="title" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="author" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="isbn" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="genre" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="notes" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="coverImageData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="pageCount" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="publishYear" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="isAvailable" optional="YES" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="ownerName" optional="YES" attributeType="String" defaultValueString="Me"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" defaultDateTimeInterval="0" usesScalarValueType="NO"/>
+        <relationship name="library" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CDLibrary" inverseName="books" inverseEntity="CDLibrary"/>
+        <relationship name="requests" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CDBookRequest" inverseName="book" inverseEntity="CDBookRequest"/>
+    </entity>
+    <entity name="CDBookRequest" representedClassName="CDBookRequest" syncable="YES" codeGenerationType="class">
+        <attribute name="requesterName" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="message" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="status" optional="YES" attributeType="String" defaultValueString="pending"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" defaultDateTimeInterval="0" usesScalarValueType="NO"/>
+        <relationship name="book" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CDBook" inverseName="requests" inverseEntity="CDBook"/>
+    </entity>
+</model>
