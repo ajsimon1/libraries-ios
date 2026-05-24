@@ -51,7 +51,13 @@ struct RequestsView: View {
 
 struct RequestManageRow: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.persistenceController) private var persistence
     @ObservedObject var request: CDBookRequest
+
+    private var isOwner: Bool {
+        guard let book = request.book else { return false }
+        return persistence.isOwner(book)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -73,7 +79,7 @@ struct RequestManageRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            if request.status == "pending" {
+            if isOwner && request.status == "pending" {
                 HStack(spacing: 12) {
                     Button("Approve") {
                         request.status = "approved"
@@ -121,6 +127,7 @@ struct StatusBadge: View {
         switch status {
         case "approved": return .green
         case "declined": return .red
+        case "returned": return .gray
         default: return .orange
         }
     }

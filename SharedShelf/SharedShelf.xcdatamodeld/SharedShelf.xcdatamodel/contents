@@ -24,6 +24,7 @@
     </entity>
     <entity name="CDBookRequest" representedClassName="CDBookRequest" syncable="YES" codeGenerationType="class">
         <attribute name="requesterName" optional="YES" attributeType="String" defaultValueString=""/>
+        <attribute name="requesterLibraryName" optional="YES" attributeType="String" defaultValueString=""/>
         <attribute name="message" optional="YES" attributeType="String" defaultValueString=""/>
         <attribute name="status" optional="YES" attributeType="String" defaultValueString="pending"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" defaultDateTimeInterval="0" usesScalarValueType="NO"/>

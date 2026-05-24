@@ -150,18 +150,30 @@ struct AddBookView: View {
     }
 
     private func lookupISBN() async {
+        #if DEBUG
+        print("ISBN_LOOKUP: starting lookup for '\(isbn)'")
+        #endif
         isLookingUp = true
         lookupError = nil
         do {
             let result = try await ISBNLookupService.lookup(isbn: isbn)
+            #if DEBUG
+            print("ISBN_LOOKUP: success — title='\(result.title)', author='\(result.author)', pages=\(result.pageCount)")
+            #endif
             title = result.title
             author = result.author
             publishYear = result.publishYear
             pageCount = result.pageCount
             if let coverURL = result.coverURL {
+                #if DEBUG
+                print("ISBN_LOOKUP: fetching cover \(coverURL)")
+                #endif
                 coverImageData = await ISBNLookupService.fetchCoverImage(urlString: coverURL)
             }
         } catch {
+            #if DEBUG
+            print("ISBN_LOOKUP: ERROR — \(error)  localized='\(error.localizedDescription)'")
+            #endif
             lookupError = error.localizedDescription
         }
         isLookingUp = false

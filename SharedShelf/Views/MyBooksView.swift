@@ -128,6 +128,11 @@ struct BookRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                if let owner = book.ownerName, !owner.isEmpty, owner != "Me" {
+                    Text("From: \(owner)")
+                        .font(.caption)
+                        .foregroundStyle(.indigo)
+                }
                 HStack(spacing: 8) {
                     if let genre = book.genre, !genre.isEmpty {
                         Text(genre)

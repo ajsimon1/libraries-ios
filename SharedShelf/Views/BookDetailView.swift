@@ -5,8 +5,16 @@ struct BookDetailView: View {
     @ObservedObject var book: CDBook
     let isOwner: Bool
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.persistenceController) private var persistence
+    @Environment(\.dismiss) private var dismiss
     @State private var showingEditSheet = false
     @State private var showingRequestSheet = false
+
+    private var borrowedCopyRequest: CDBookRequest? {
+        guard isOwner else { return nil }
+        return persistence.borrowRequest(for: book)
+    }
+    private var isBorrowedCopy: Bool { borrowedCopyRequest != nil }
 
     var body: some View {
         ScrollView {
@@ -70,19 +78,37 @@ struct BookDetailView: View {
                     Divider()
 
                     if isOwner {
-                        // Availability toggle for owner
-                        Toggle(isOn: Binding(
-                            get: { book.isAvailable },
-                            set: { book.isAvailable = $0; try? viewContext.save() }
-                        )) {
-                            Label(
-                                book.isAvailable ? "Available" : "Lent Out",
-                                systemImage: book.isAvailable ? "checkmark.circle" : "clock"
-                            )
+                        if isBorrowedCopy {
+                            // Borrowed copy — show return action instead of owner controls
+                            HStack {
+                                Label("Borrowed", systemImage: "book.closed.fill")
+                                    .foregroundStyle(.indigo)
+                                Spacer()
+                                Button("Return Book") {
+                                    persistence.returnBorrowedBook(book)
+                                    dismiss()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.green)
+                            }
+                        } else {
+                            // Availability toggle for owner
+                            Toggle(isOn: Binding(
+                                get: { book.isAvailable },
+                                set: { book.isAvailable = $0; try? viewContext.save() }
+                            )) {
+                                Label(
+                                    book.isAvailable ? "Available" : "Lent Out",
+                                    systemImage: book.isAvailable ? "checkmark.circle" : "clock"
+                                )
+                            }
+                            .tint(.indigo)
                         }
-                        .tint(.indigo)
                     } else {
                         // Borrow request for non-owner
+                        let hasPendingRequest = (book.requests as? Set<CDBookRequest>)?
+                            .contains { $0.status == "pending" } ?? false
+
                         HStack {
                             Label(
                                 book.isAvailable ? "Available" : "Lent Out",
@@ -93,11 +119,20 @@ struct BookDetailView: View {
                             Spacer()
 
                             if book.isAvailable {
-                                Button("Request to Borrow") {
-                                    showingRequestSheet = true
+                                if hasPendingRequest {
+                                    Button(action: {}) {
+                                        Label("Requested", systemImage: "clock.badge.checkmark")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(.indigo)
+                                    .disabled(true)
+                                } else {
+                                    Button("Request to Borrow") {
+                                        showingRequestSheet = true
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.indigo)
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .tint(.indigo)
                             }
                         }
                     }
@@ -135,7 +170,7 @@ struct BookDetailView: View {
         .navigationTitle("Book Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if isOwner {
+            if isOwner && !isBorrowedCopy {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit") { showingEditSheet = true }
                 }
@@ -263,15 +298,41 @@ struct EditBookSheet: View {
 struct RequestBorrowSheet: View {
     let book: CDBook
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.persistenceController) private var persistence
     @Environment(\.dismiss) private var dismiss
-    @State private var requesterName = ""
+
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CDLibrary.createdAt, ascending: true)]
+    ) private var allLibraries: FetchedResults<CDLibrary>
+
+    @State private var selectedLibrary: CDLibrary?
     @State private var message = ""
+
+    private var myLibraries: [CDLibrary] {
+        allLibraries.filter { persistence.isOwner($0) && $0.name != "Borrowed" }
+    }
+
+    private var requesterName: String {
+        guard let library = selectedLibrary else { return "" }
+        let owner = (library.ownerName ?? "").trimmingCharacters(in: .whitespaces)
+        return owner.isEmpty ? (library.name ?? "") : owner
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Your Info") {
-                    TextField("Your Name", text: $requesterName)
+                Section("Requesting as") {
+                    if myLibraries.isEmpty {
+                        Text("Create a library first so the owner knows who's asking.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Picker("Library", selection: $selectedLibrary) {
+                            ForEach(myLibraries) { library in
+                                Text(libraryLabel(library)).tag(Optional(library))
+                            }
+                        }
+                    }
                 }
                 Section("Message (optional)") {
                     TextField("Why you'd like to borrow this book", text: $message, axis: .vertical)
@@ -287,7 +348,8 @@ struct RequestBorrowSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Send Request") {
                         let request = CDBookRequest(context: viewContext)
-                        request.requesterName = requesterName.trimmingCharacters(in: .whitespaces)
+                        request.requesterName = requesterName
+                        request.requesterLibraryName = selectedLibrary?.name
                         request.message = message.trimmingCharacters(in: .whitespaces)
                         request.status = "pending"
                         request.createdAt = Date()
@@ -295,9 +357,20 @@ struct RequestBorrowSheet: View {
                         try? viewContext.save()
                         dismiss()
                     }
-                    .disabled(requesterName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(selectedLibrary == nil || requesterName.isEmpty)
+                }
+            }
+            .onAppear {
+                if selectedLibrary == nil {
+                    selectedLibrary = myLibraries.first
                 }
             }
         }
+    }
+
+    private func libraryLabel(_ library: CDLibrary) -> String {
+        let name = library.name ?? "Untitled"
+        let owner = (library.ownerName ?? "").trimmingCharacters(in: .whitespaces)
+        return owner.isEmpty ? name : "\(name) — \(owner)"
     }
 }

@@ -10,7 +10,18 @@ struct ISBNBookResult {
 
 struct ISBNLookupService {
     static func lookup(isbn: String) async throws -> ISBNBookResult {
-        let cleanISBN = isbn.replacingOccurrences(of: "-", with: "").trimmingCharacters(in: .whitespaces)
+        // Strip everything that isn't a digit or trailing 'X' (valid ISBN-10 check digit).
+        // Handles paste artifacts: en/em dashes, non-breaking spaces, "ISBN:" prefix, smart quotes, etc.
+        let cleanISBN = isbn
+            .uppercased()
+            .filter { $0.isNumber || $0 == "X" }
+        #if DEBUG
+        print("ISBN_LOOKUP: raw='\(isbn)' clean='\(cleanISBN)' length=\(cleanISBN.count)")
+        #endif
+
+        guard cleanISBN.count == 10 || cleanISBN.count == 13 else {
+            throw LookupError.invalidISBN
+        }
 
         // Open Library API
         guard let url = URL(string: "https://openlibrary.org/isbn/\(cleanISBN).json") else {

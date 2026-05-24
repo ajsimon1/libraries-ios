@@ -26,6 +26,9 @@ struct LibrariesListView: View {
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         addButton
+                        #if DEBUG
+                        if shared { debugSeedMenu }
+                        #endif
                     }
                 }
                 .sheet(isPresented: $showingAddLibrary) {
@@ -87,6 +90,42 @@ struct LibrariesListView: View {
             }
         }
     }
+
+    #if DEBUG
+    private var debugSeedMenu: some View {
+        Menu {
+            Button {
+                persistence.pushFullSchema()
+            } label: {
+                Label("Push CloudKit schema", systemImage: "icloud.and.arrow.up")
+            }
+            Button {
+                persistence.seedFakeSharedLibrary()
+            } label: {
+                Label("Seed test data", systemImage: "plus.square.on.square")
+            }
+            Section("Mimic owner") {
+                Button {
+                    persistence.approvePendingDemoRequests()
+                } label: {
+                    Label("Approve pending requests", systemImage: "checkmark.circle")
+                }
+                Button {
+                    persistence.declinePendingDemoRequests()
+                } label: {
+                    Label("Decline pending requests", systemImage: "xmark.circle")
+                }
+            }
+            Button(role: .destructive) {
+                persistence.clearTestData()
+            } label: {
+                Label("Clear test data", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "flask")
+        }
+    }
+    #endif
 
     private func shareLibrary(_ library: CDLibrary) {
         if let existingShare = persistence.existingShare(for: library) {
