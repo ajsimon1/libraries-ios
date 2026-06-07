@@ -8,6 +8,7 @@ struct LibrariesListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var showingAddLibrary = false
     @State private var activeShare: CKShareTransfer?
+    @State private var librariesPendingDeletion: [CDLibrary] = []
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CDLibrary.createdAt, ascending: true)]
@@ -75,11 +76,47 @@ struct LibrariesListView: View {
                 }
             }
             .onDelete { offsets in
-                let toDelete = offsets.map { libraries[$0] }
-                for library in toDelete { viewContext.delete(library) }
-                try? viewContext.save()
+                librariesPendingDeletion = offsets.map { libraries[$0] }
             }
         }
+        .alert(deletionAlertTitle, isPresented: deletionAlertBinding) {
+            Button("Cancel", role: .cancel) {
+                librariesPendingDeletion = []
+            }
+            Button("Delete", role: .destructive) {
+                for library in librariesPendingDeletion {
+                    viewContext.delete(library)
+                }
+                try? viewContext.save()
+                librariesPendingDeletion = []
+            }
+        } message: {
+            Text(deletionAlertMessage)
+        }
+    }
+
+    private var deletionAlertBinding: Binding<Bool> {
+        Binding(
+            get: { !librariesPendingDeletion.isEmpty },
+            set: { if !$0 { librariesPendingDeletion = [] } }
+        )
+    }
+
+    private var deletionAlertTitle: String {
+        if librariesPendingDeletion.count == 1 {
+            return "Delete \(librariesPendingDeletion[0].name ?? "this library")?"
+        }
+        return "Delete \(librariesPendingDeletion.count) libraries?"
+    }
+
+    private var deletionAlertMessage: String {
+        let bookCount = librariesPendingDeletion.reduce(0) { $0 + ($1.books?.count ?? 0) }
+        let bookNoun = bookCount == 1 ? "book" : "books"
+        let target = librariesPendingDeletion.count == 1 ? "this library" : "these libraries"
+        if bookCount == 0 {
+            return "This will permanently delete \(target). This cannot be undone."
+        }
+        return "This will permanently delete \(target) and \(bookCount) \(bookNoun) inside. This cannot be undone."
     }
 
     @ViewBuilder
